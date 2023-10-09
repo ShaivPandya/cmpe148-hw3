@@ -1,66 +1,71 @@
 from socket import *
+import ssl
+import base64
+from getpass import getpass
 
-# Define the message and endmsg
-msg = "\r\nI love computer networks!"
+msg = "\r\n I love computer networks!"
 endmsg = "\r\n.\r\n"
 
-# Choose a mail server (e.g., Google's SMTP server) and call it mailserver
-mailserver = "smtp.freesmtpservers.com"
+email = input("Email: ")
+pw = getpass()
 
-# Create a socket called clientSocket and establish a TCP connection with the mailserver
+# Choose a mail server (e.g. Google mail server) and call it mailserver
+mailserver = ("smtp.gmail.com", 587)
+
+print("Started, creating socket!")
+# Create socket called clientSocket and establish a TCP connection with mailserver
 clientSocket = socket(AF_INET, SOCK_STREAM)
-clientSocket.connect((mailserver, 25))  # Use port 587 for TLS encryption
+clientSocket.connect(mailserver)
 
+print("Connected, listening!")
 recv = clientSocket.recv(1024).decode()
 print(recv)
+
 if recv[:3] != '220':
     print('220 reply not received from server.')
 
 # Send HELO command and print server response.
-heloCommand = 'HELO Alice\r\n'
+heloCommand = 'HELO smtp.gmail.com\r\n'
 clientSocket.send(heloCommand.encode())
 recv1 = clientSocket.recv(1024).decode()
 print(recv1)
+
 if recv1[:3] != '250':
     print('250 reply not received from server.')
 
-# Send STARTTLS command to initiate a secure connection
-starttlsCommand = 'STARTTLS\r\n'
-clientSocket.send(starttlsCommand.encode())
-recv2 = clientSocket.recv(1024).decode()
-print(recv2)
-if recv2[:3] != '220':
-    print('220 reply not received from server.')
+command = "STARTTLS\r\n"
+clientSocket.send(command.encode())
+recvdiscard = clientSocket.recv(1024)
+print(recvdiscard)
 
-# Wrap the socket with TLS/SSL for secure communication
-import ssl
-clientSocket = ssl.wrap_socket(clientSocket, ssl_version=ssl.PROTOCOL_TLS)
+clientSocket = ssl.wrap_socket(clientSocket)
 
-# Send AUTH LOGIN command for authentication (you need to encode your credentials in base64)
-authCommand = 'AUTH LOGIN\r\n'
-clientSocket.send(authCommand.encode())
-recv3 = clientSocket.recv(1024).decode()
-print(recv3)
-if recv3[:3] != '334':
-    print('334 reply not received from server.')
+clientSocket.send(heloCommand.encode())
+recv1 = clientSocket.recv(1024).decode()
+print(recv1)
 
-# Send your base64-encoded username and password
-username = 'username'  # Your SMTP username (base64-encoded)
-password = 'password'  # Your SMTP password (base64-encoded)
-clientSocket.send(username.encode() + b'\r\n')
-recv4 = clientSocket.recv(1024).decode()
-print(recv4)
-if recv4[:3] != '334':
-    print('334 reply not received from server.')
+#Send AUTH first
+authMesg = 'AUTH LOGIN\r\n'
+crlfMesg = '\r\n'
 
-clientSocket.send(password.encode() + b'\r\n')
-recv5 = clientSocket.recv(1024).decode()
-print(recv5)
-if recv5[:3] != '235':
-    print('235 reply not received from server.')
+clientSocket.send(authMesg.encode())
+recv1 = clientSocket.recv(1024).decode()
+print(recv1)
+
+e = base64.b64encode(email.encode())
+clientSocket.send(e)
+clientSocket.send(crlfMesg.encode())
+recv1 = clientSocket.recv(1024).decode()
+print(recv1)
+
+p = base64.b64encode(pw.encode())
+clientSocket.send(p)
+clientSocket.send(crlfMesg.encode())
+recv1 = clientSocket.recv(1024).decode()
+print(recv1)
 
 # Send MAIL FROM command and print server response.
-mailFromCommand = 'MAIL FROM: <sender@example.com>\r\n'
+mailFromCommand = 'MAIL FROM: <' + email + '>\r\n'
 clientSocket.send(mailFromCommand.encode())
 recv6 = clientSocket.recv(1024).decode()
 print(recv6)
@@ -68,7 +73,7 @@ if recv6[:3] != '250':
     print('250 reply not received from server.')
 
 # Send RCPT TO command and print server response.
-rcptToCommand = 'RCPT TO: <recipient@example.com>\r\n'
+rcptToCommand = 'RCPT TO: <' + email + '>\r\n'
 clientSocket.send(rcptToCommand.encode())
 recv7 = clientSocket.recv(1024).decode()
 print(recv7)
@@ -100,6 +105,3 @@ recv10 = clientSocket.recv(1024).decode()
 print(recv10)
 if recv10[:3] != '221':
     print('221 reply not received from server.')
-
-# Close the socket
-clientSocket.close()
